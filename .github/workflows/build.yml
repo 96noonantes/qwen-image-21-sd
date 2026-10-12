@@ -1,0 +1,67 @@
+name: Build and publish sd-server image with baked-in models
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  DIT_URL: https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF/resolve/main/Qwen-Image-2.1-Turbo-AD-Q5_K.gguf
+  ENC_URL: https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF/resolve/main/Qwen-Image-2.1-Turbo-Abliterated-Uncensored-AD-Q5_K.gguf
+  VAE_URL: https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download models (parallel)
+        run: |
+          mkdir -p models
+          curl -sL --fail --retry 3 --retry-delay 5 -o models/dit.gguf "$DIT_URL" &
+          curl -sL --fail --retry 3 --retry-delay 5 -o models/enc.gguf "$ENC_URL" &
+          curl -sL --fail --retry 3 --retry-delay 5 -o models/vae.safetensors "$VAE_URL" &
+          wait
+          ls -la models/
+          du -sh models/
+
+      - name: Verify model sizes
+        run: |
+          python3 - <<'PY'
+          import os
+          exp = {"models/dit.gguf": (5_000_000_000, 6_500_000_000),
+                 "models/enc.gguf": (6_000_000_000, 7_500_000_000),
+                 "models/vae.safetensors": (500_000_000, 900_000_000)}
+          for p, (lo, hi) in exp.items():
+              n = os.path.getsize(p)
+              assert lo <= n <= hi, f"{p}: {n} bytes out of expected range"
+              print(p, n)
+          PY
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Show image size
+        run: |
+          docker image ls ghcr.io/${{ github.repository }}
