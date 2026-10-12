@@ -9,6 +9,7 @@ env:
   DIT_URL: https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-GGUF/resolve/main/Qwen-Image-2.1-Turbo-AD-Q5_K.gguf
   ENC_URL: https://huggingface.co/AtomicChat/Qwen-Image-2.1-Turbo-Uncensored-GGUF/resolve/main/Qwen-Image-2.1-Turbo-Abliterated-Uncensored-AD-Q5_K.gguf
   VAE_URL: https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors
+  MM_PROJ_URL: https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-Qwen3VL-8B-Instruct-F16.gguf
 
 jobs:
   build:
@@ -43,6 +44,7 @@ jobs:
             DIT_URL=${{ env.DIT_URL }}
             ENC_URL=${{ env.ENC_URL }}
             VAE_URL=${{ env.VAE_URL }}
+            MM_PROJ_URL=${{ env.MM_PROJ_URL }}
           tags: |
             ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
